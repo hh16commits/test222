@@ -14,7 +14,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-model = genai.GenerativeModel("gemini-2.0-flash")
+model = genai.GenerativeModel("gemini-flash-latest")
 
 
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -23,7 +23,12 @@ async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         response = model.generate_content(user_message)
 
-        await update.message.reply_text(response.text)
+        answer = response.text
+
+        if len(answer) > 4000:
+            answer = answer[:4000]
+
+        await update.message.reply_text(answer)
 
     except Exception as e:
         await update.message.reply_text(f"Ошибка: {e}")
@@ -35,6 +40,6 @@ app.add_handler(
     MessageHandler(filters.TEXT & ~filters.COMMAND, chat)
 )
 
-print("Gemini bot started 🚀")
+print("AI bot started 🚀")
 
 app.run_polling(close_loop=False)
