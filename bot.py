@@ -74,8 +74,7 @@ model = genai.GenerativeModel(
 
 conn = sqlite3.connect(
     "shop.db",
-    check_same_thread=False,
-    timeout=10
+    check_same_thread=False
 )
 
 cursor = conn.cursor()
@@ -1035,4 +1034,3 @@ Thread(
 app.run_polling(
     close_loop=False
 )
-```
