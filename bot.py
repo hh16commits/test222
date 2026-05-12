@@ -48,12 +48,27 @@ conn = sqlite3.connect(
 
 cursor = conn.cursor()
 
+# ORDERS TABLE
+
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id TEXT,
     username TEXT,
     product TEXT
+)
+""")
+
+conn.commit()
+
+# PRODUCTS TABLE
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT,
+    category TEXT,
+    price TEXT
 )
 """)
 
@@ -149,6 +164,7 @@ async def start(
         text,
         reply_markup=main_keyboard
     )
+
 # =========================
 # ADMIN PANEL
 # =========================
@@ -199,6 +215,126 @@ async def admin(
         parse_mode="HTML",
         disable_web_page_preview=True
     )
+
+# =========================
+# ADD PRODUCT
+# =========================
+
+async def addproduct(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    try:
+
+        data = " ".join(context.args)
+
+        split_data = data.split("|")
+
+        name = split_data[0].strip()
+        category = split_data[1].strip()
+        price = split_data[2].strip()
+
+        cursor.execute(
+            """
+            INSERT INTO products
+            (name, category, price)
+            VALUES (?, ?, ?)
+            """,
+            (name, category, price)
+        )
+
+        conn.commit()
+
+        await update.message.reply_text(
+            "✅ Товар добавлен!"
+        )
+
+    except:
+
+        await update.message.reply_text(
+            """
+Использование:
+
+/addproduct Название | Категория | Цена
+"""
+        )
+
+# =========================
+# PRODUCTS ADMIN
+# =========================
+
+async def products(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    cursor.execute(
+        "SELECT * FROM products"
+    )
+
+    products = cursor.fetchall()
+
+    if not products:
+
+        await update.message.reply_text(
+            "Товаров нет 📭"
+        )
+
+        return
+
+    text = "🛍 Товары:\n\n"
+
+    for product in products:
+
+        text += (
+            f"ID: {product[0]}\n"
+            f"📦 {product[1]}\n"
+            f"📂 {product[2]}\n"
+            f"💵 {product[3]}\n\n"
+        )
+
+    await update.message.reply_text(text)
+
+# =========================
+# DELETE PRODUCT
+# =========================
+
+async def deleteproduct(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    try:
+
+        product_id = context.args[0]
+
+        cursor.execute(
+            "DELETE FROM products WHERE id=?",
+            (product_id,)
+        )
+
+        conn.commit()
+
+        await update.message.reply_text(
+            "🗑 Товар удалён!"
+        )
+
+    except:
+
+        await update.message.reply_text(
+            "Использование:\n/deleteproduct ID"
+        )
+
 # =========================
 # TEXT MESSAGES
 # =========================
@@ -210,16 +346,12 @@ async def messages(
 
     text = update.message.text
 
-    # CATALOG
-
     if text == "🛍 Каталог":
 
         await update.message.reply_text(
             "Выберите категорию 👇",
             reply_markup=catalog_keyboard
         )
-
-    # MINI APP
 
     elif text == "🛍 Mini App":
 
@@ -239,8 +371,6 @@ async def messages(
             reply_markup=keyboard
         )
 
-    # AI
-
     elif text == "🤖 AI Консультант":
 
         context.user_data["ai_mode"] = True
@@ -249,15 +379,11 @@ async def messages(
             "Напишите вопрос ✨"
         )
 
-    # SKINCARE
-
     elif text == "🧴 Подбор ухода":
 
         await update.message.reply_text(
             "Напишите ваш тип кожи ✨"
         )
-
-    # ORDERS
 
     elif text == "📦 Мои заказы":
 
@@ -294,15 +420,11 @@ async def messages(
                 orders_text
             )
 
-    # SUPPORT
-
     elif text == "💬 Поддержка":
 
         await update.message.reply_text(
             "Менеджер:\n@glowrush_support"
         )
-
-    # ABOUT
 
     elif text == "📍 О нас":
 
@@ -312,15 +434,11 @@ async def messages(
             "Доставка по Узбекистану 🚚"
         )
 
-    # INSTAGRAM
-
     elif text == "🌐 Instagram":
 
         await update.message.reply_text(
             "https://instagram.com/glowrush.uz"
         )
-
-    # ORDER CONTACT
 
     elif context.user_data.get(
         "order_product"
@@ -367,8 +485,6 @@ async def messages(
         await update.message.reply_text(
             "✅ Заказ отправлен!"
         )
-
-    # AI CHAT
 
     elif context.user_data.get(
         "ai_mode"
@@ -422,33 +538,12 @@ async def callbacks(
 
     await query.answer()
 
-    # USER
-
-    user_id = str(query.from_user.id)
-
-    if query.from_user.username:
-
-        username = (
-            "@"
-            + query.from_user.username
-        )
-
-    else:
-
-        username = (
-            query.from_user.first_name
-        )
-
-    # FACE
-
     if query.data == "face":
 
         await query.message.reply_text(
             "✨ Уход за лицом",
             reply_markup=face_products
         )
-
-    # SERUM
 
     elif query.data == "serum":
 
@@ -457,8 +552,6 @@ async def callbacks(
             reply_markup=serum_products
         )
 
-    # CLEAN
-
     elif query.data == "clean":
 
         await query.message.reply_text(
@@ -466,8 +559,6 @@ async def callbacks(
             "🫧 Cleansing Oil\n"
             "🫧 Cleansing Balm"
         )
-
-    # BUY SUN
 
     elif query.data == "buy_sun":
 
@@ -491,8 +582,6 @@ async def callbacks(
 """
         )
 
-    # BUY TONER
-
     elif query.data == "buy_toner":
 
         product = "Round Lab Toner"
@@ -512,8 +601,6 @@ async def callbacks(
 • Адрес доставки
 """
         )
-
-    # BUY AXIS
 
     elif query.data == "buy_axis":
 
@@ -536,8 +623,6 @@ async def callbacks(
 • Адрес доставки
 """
         )
-
-    # BUY SKIN
 
     elif query.data == "buy_skin":
 
@@ -573,6 +658,18 @@ app.add_handler(
 
 app.add_handler(
     CommandHandler("admin", admin)
+)
+
+app.add_handler(
+    CommandHandler("addproduct", addproduct)
+)
+
+app.add_handler(
+    CommandHandler("products", products)
+)
+
+app.add_handler(
+    CommandHandler("deleteproduct", deleteproduct)
 )
 
 app.add_handler(
