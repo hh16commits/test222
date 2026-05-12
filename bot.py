@@ -27,10 +27,11 @@ TOKEN = os.getenv("TOKEN")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# ВСТАВЬ СВОЙ TELEGRAM ID
 ADMIN_ID = 6081767884
 
-# MINI APP URL
+# USER КОТОРОГО НУЖНО ЗАБЛОКИРОВАТЬ
+BLOCKED_USER_ID = 8271755471
+
 WEBAPP_URL = "https://your-app.up.railway.app"
 
 # =========================
@@ -178,6 +179,16 @@ async def start(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
 ):
+
+    # BLOCKED USER
+
+    if update.effective_user.id == BLOCKED_USER_ID:
+
+        await update.message.reply_text(
+            "🚧 Бот временно не работает"
+        )
+
+        return
 
     await update.message.reply_text(
         (
@@ -427,6 +438,16 @@ async def messages(
     context: ContextTypes.DEFAULT_TYPE
 ):
 
+    # BLOCKED USER
+
+    if update.effective_user.id == BLOCKED_USER_ID:
+
+        await update.message.reply_text(
+            "🚧 Бот временно не работает"
+        )
+
+        return
+
     text = update.message.text
 
     # CATALOG
@@ -653,6 +674,16 @@ async def callbacks(
     query = update.callback_query
 
     await query.answer()
+
+    # BLOCKED USER
+
+    if query.from_user.id == BLOCKED_USER_ID:
+
+        await query.message.reply_text(
+            "🚧 Бот временно не работает"
+        )
+
+        return
 
     # FACE
 
