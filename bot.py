@@ -540,10 +540,10 @@ async def callbacks(
 
     if query.data == "face":
 
-        await query.message.reply_text(
-            "✨ Уход за лицом",
-            reply_markup=face_products
-            SELECT * FROM products
+       await query.message.reply_text(
+    "✨ Уход за лицом",
+    reply_markup=face_products
+)
         )
 
     elif query.data == "serum":
