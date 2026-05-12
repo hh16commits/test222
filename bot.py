@@ -32,7 +32,7 @@ ADMIN_ID = 6081767884
 # USER КОТОРОГО НУЖНО ЗАБЛОКИРОВАТЬ
 BLOCKED_USER_ID = 1145800624
 
-WEBAPP_URL = "https://your-app.up.railway.app"
+WEBAPP_URL = "test222-production.up.railway.app"
 
 # =========================
 # GEMINI AI
