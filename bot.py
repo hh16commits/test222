@@ -195,7 +195,11 @@ async def admin(
     if len(text) > 4000:
         text = text[:4000]
 
-    await update.message.reply_text(text)
+await update.message.reply_text(
+    text,
+    parse_mode="HTML",
+    disable_web_page_preview=True
+)
 
 # =========================
 # TEXT MESSAGES
