@@ -23,17 +23,26 @@ from telegram.ext import (
 # =========================
 
 TOKEN = os.getenv("TOKEN")
+
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+# ⚠️ ВСТАВЬ СВОЙ TELEGRAM ID
+ADMIN_ID = 123456789
 
 genai.configure(api_key=GEMINI_API_KEY)
 
-model = genai.GenerativeModel("gemini-flash-latest")
+model = genai.GenerativeModel(
+    "gemini-flash-latest"
+)
 
 # =========================
 # DATABASE
 # =========================
 
-conn = sqlite3.connect("shop.db", check_same_thread=False)
+conn = sqlite3.connect(
+    "shop.db",
+    check_same_thread=False
+)
 
 cursor = conn.cursor()
 
@@ -125,7 +134,10 @@ serum_products = InlineKeyboardMarkup([
 # START
 # =========================
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def start(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     text = (
         "✨ Добро пожаловать в GlowRush 🇰🇷\n\n"
@@ -139,10 +151,59 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 # =========================
+# ADMIN PANEL
+# =========================
+
+async def admin(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    if update.effective_user.id != ADMIN_ID:
+
+        await update.message.reply_text(
+            "У вас нет доступа ❌"
+        )
+
+        return
+
+    cursor.execute(
+        "SELECT * FROM orders"
+    )
+
+    orders = cursor.fetchall()
+
+    if not orders:
+
+        await update.message.reply_text(
+            "Заказов пока нет 📭"
+        )
+
+        return
+
+    text = "📦 Все заказы:\n\n"
+
+    for order in orders:
+
+        text += (
+            f"ID: {order[0]}\n"
+            f"User: @{order[2]}\n"
+            f"Product: {order[3]}\n\n"
+        )
+
+    if len(text) > 4000:
+        text = text[:4000]
+
+    await update.message.reply_text(text)
+
+# =========================
 # TEXT MESSAGES
 # =========================
 
-async def messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def messages(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     text = update.message.text
 
@@ -181,7 +242,9 @@ async def messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text == "📦 Мои заказы":
 
-        user_id = str(update.effective_user.id)
+        user_id = str(
+            update.effective_user.id
+        )
 
         cursor.execute(
             "SELECT product FROM orders WHERE user_id=?",
@@ -198,12 +261,16 @@ async def messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         else:
 
-            text_orders = "📦 Ваши заказы:\n\n"
+            text_orders = (
+                "📦 Ваши заказы:\n\n"
+            )
 
             for order in orders:
                 text_orders += f"• {order[0]}\n"
 
-            await update.message.reply_text(text_orders)
+            await update.message.reply_text(
+                text_orders
+            )
 
     # SUPPORT
 
@@ -239,7 +306,9 @@ async def messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             response = model.generate_content(
                 f"""
-                Ты консультант магазина корейской косметики.
+                Ты консультант магазина
+                корейской косметики.
+
                 Отвечай кратко и полезно.
 
                 Вопрос:
@@ -252,7 +321,9 @@ async def messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if len(answer) > 4000:
                 answer = answer[:4000]
 
-            await update.message.reply_text(answer)
+            await update.message.reply_text(
+                answer
+            )
 
         except Exception as e:
 
@@ -270,7 +341,10 @@ async def messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # CALLBACKS
 # =========================
 
-async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def callbacks(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
 
     query = update.callback_query
 
@@ -278,7 +352,9 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_id = str(query.from_user.id)
 
-    username = str(query.from_user.username)
+    username = str(
+        query.from_user.username
+    )
 
     # FACE
 
@@ -313,10 +389,16 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "buy_sun":
 
-        product = "Beauty of Joseon Relief Sun"
+        product = (
+            "Beauty of Joseon Relief Sun"
+        )
 
         cursor.execute(
-            "INSERT INTO orders (user_id, username, product) VALUES (?, ?, ?)",
+            """
+            INSERT INTO orders
+            (user_id, username, product)
+            VALUES (?, ?, ?)
+            """,
             (user_id, username, product)
         )
 
@@ -331,7 +413,11 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         product = "Round Lab Toner"
 
         cursor.execute(
-            "INSERT INTO orders (user_id, username, product) VALUES (?, ?, ?)",
+            """
+            INSERT INTO orders
+            (user_id, username, product)
+            VALUES (?, ?, ?)
+            """,
             (user_id, username, product)
         )
 
@@ -343,10 +429,16 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif query.data == "buy_axis":
 
-        product = "Axis-Y Dark Spot Serum"
+        product = (
+            "Axis-Y Dark Spot Serum"
+        )
 
         cursor.execute(
-            "INSERT INTO orders (user_id, username, product) VALUES (?, ?, ?)",
+            """
+            INSERT INTO orders
+            (user_id, username, product)
+            VALUES (?, ?, ?)
+            """,
             (user_id, username, product)
         )
 
@@ -361,7 +453,11 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
         product = "Skin1004 Ampoule"
 
         cursor.execute(
-            "INSERT INTO orders (user_id, username, product) VALUES (?, ?, ?)",
+            """
+            INSERT INTO orders
+            (user_id, username, product)
+            VALUES (?, ?, ?)
+            """,
             (user_id, username, product)
         )
 
@@ -375,11 +471,23 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # APP
 # =========================
 
-app = ApplicationBuilder().token(TOKEN).build()
+app = ApplicationBuilder().token(
+    TOKEN
+).build()
+
+# START
 
 app.add_handler(
     CommandHandler("start", start)
 )
+
+# ADMIN
+
+app.add_handler(
+    CommandHandler("admin", admin)
+)
+
+# TEXT
 
 app.add_handler(
     MessageHandler(
@@ -388,11 +496,14 @@ app.add_handler(
     )
 )
 
+# CALLBACKS
+
 app.add_handler(
     CallbackQueryHandler(callbacks)
 )
 
-print("GlowRush AI business bot started 🚀")
+print(
+    "GlowRush AI business bot started 🚀"
+)
 
 app.run_polling(close_loop=False)
-TOKEN = os.getenv("TOKEN_admin")
