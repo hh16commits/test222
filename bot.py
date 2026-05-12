@@ -23,6 +23,22 @@ from telegram.ext import (
 )
 
 # =========================
+# FLASK WEB SERVER
+# =========================
+
+app_web = Flask(__name__)
+
+@app_web.route("/")
+def home():
+    return "GlowRush Bot is running 🚀"
+
+def run_web():
+    app_web.run(
+        host="0.0.0.0",
+        port=8080
+    )
+
+# =========================
 # CONFIG
 # =========================
 
@@ -32,10 +48,11 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 ADMIN_ID = 6081767884
 
-# USER КОТОРОГО НУЖНО ЗАБЛОКИРОВАТЬ
+# USER ID ДЛЯ БЛОКИРОВКИ
 BLOCKED_USER_ID = 1145800624
 
-WEBAPP_URL = "test222-production.up.railway.app"
+# MINI APP URL
+WEBAPP_URL = "https://test222-production.up.railway.app"
 
 # =========================
 # GEMINI AI
@@ -46,7 +63,7 @@ genai.configure(
 )
 
 model = genai.GenerativeModel(
-    "gemini-flash-latest"
+    "gemini-2.0-flash"
 )
 
 # =========================
@@ -55,12 +72,15 @@ model = genai.GenerativeModel(
 
 conn = sqlite3.connect(
     "shop.db",
-    check_same_thread=False
+    check_same_thread=False,
+    timeout=10
 )
 
 cursor = conn.cursor()
 
+# =========================
 # ORDERS TABLE
+# =========================
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS orders (
@@ -73,7 +93,9 @@ CREATE TABLE IF NOT EXISTS orders (
 
 conn.commit()
 
+# =========================
 # PRODUCTS TABLE
+# =========================
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS products (
@@ -99,6 +121,7 @@ existing_products = cursor.fetchall()
 if not existing_products:
 
     products_data = [
+
         (
             "Beauty of Joseon Relief Sun",
             "face",
@@ -122,6 +145,7 @@ if not existing_products:
             "serum",
             "17$"
         )
+
     ]
 
     cursor.executemany(
@@ -183,12 +207,10 @@ async def start(
     context: ContextTypes.DEFAULT_TYPE
 ):
 
-    print(update.effective_user.id)
-
     if update.effective_user.id == BLOCKED_USER_ID:
 
         await update.message.reply_text(
-            "404 - Джалля именно сан ишлатомиса нахуй😂 "
+            "404 - Джалля именно сан ишлатомиса нахуй😂"
         )
 
         return
@@ -292,14 +314,10 @@ async def addproduct(
             "✅ Товар добавлен!"
         )
 
-    except:
+    except Exception as e:
 
         await update.message.reply_text(
-            (
-                "Использование:\n\n"
-                "/addproduct "
-                "Название | Категория | Цена"
-            )
+            f"Ошибка: {e}"
         )
 
 # =========================
@@ -339,6 +357,9 @@ async def products(
             f"💵 {product[3]}\n\n"
         )
 
+    if len(text) > 4000:
+        text = text[:4000]
+
     await update.message.reply_text(text)
 
 # =========================
@@ -368,10 +389,10 @@ async def deleteproduct(
             "🗑 Товар удалён!"
         )
 
-    except:
+    except Exception as e:
 
         await update.message.reply_text(
-            "Использование:\n/deleteproduct ID"
+            f"Ошибка: {e}"
         )
 
 # =========================
@@ -440,8 +461,6 @@ async def messages(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE
 ):
-
-    # BLOCKED USER
 
     if update.effective_user.id == BLOCKED_USER_ID:
 
@@ -562,8 +581,7 @@ async def messages(
         await update.message.reply_text(
             (
                 "GlowRush 🇰🇷\n\n"
-                "Оригинальная "
-                "корейская косметика\n"
+                "Оригинальная корейская косметика\n"
                 "Доставка по Узбекистану 🚚"
             )
         )
@@ -576,7 +594,7 @@ async def messages(
             "https://instagram.com/glowrush.uz"
         )
 
-    # ORDER CONTACT
+    # ORDER
 
     elif context.user_data.get(
         "order_product"
@@ -649,6 +667,8 @@ async def messages(
             if len(answer) > 4000:
                 answer = answer[:4000]
 
+            context.user_data["ai_mode"] = False
+
             await update.message.reply_text(
                 answer
             )
@@ -677,8 +697,6 @@ async def callbacks(
     query = update.callback_query
 
     await query.answer()
-
-    # BLOCKED USER
 
     if query.from_user.id == BLOCKED_USER_ID:
 
@@ -766,7 +784,7 @@ async def callbacks(
         )
 
 # =========================
-# APP
+# TELEGRAM BOT
 # =========================
 
 app = ApplicationBuilder().token(
@@ -804,7 +822,7 @@ app.add_handler(
     )
 )
 
-# MESSAGES
+# TEXT
 
 app.add_handler(
     MessageHandler(
@@ -822,6 +840,12 @@ app.add_handler(
 print(
     "GlowRush AI business bot started 🚀"
 )
+
+# START WEB SERVER
+
+Thread(target=run_web).start()
+
+# START BOT
 
 app.run_polling(
     close_loop=False
