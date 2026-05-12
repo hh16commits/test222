@@ -395,4 +395,4 @@ app.add_handler(
 print("GlowRush AI business bot started 🚀")
 
 app.run_polling(close_loop=False)
-TOKEN = os.getenv("TOKEN")
+TOKEN = os.getenv("TOKEN_admin")
