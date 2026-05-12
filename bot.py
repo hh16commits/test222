@@ -22,9 +22,9 @@ from telegram.ext import (
     filters
 )
 
-# ==========================================
+# =========================
 # FLASK WEB SERVER
-# ==========================================
+# =========================
 
 app_web = Flask(__name__)
 
@@ -38,27 +38,25 @@ def run_web():
         port=8080
     )
 
-# ==========================================
+# =========================
 # CONFIG
-# ==========================================
+# =========================
 
 TOKEN = os.getenv("TOKEN")
 
-GEMINI_API_KEY = os.getenv(
-    "GEMINI_API_KEY"
-)
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 ADMIN_ID = 6081767884
 
+# USER ID ДЛЯ БЛОКИРОВКИ
 BLOCKED_USER_ID = 1145800624
 
-WEBAPP_URL = (
-    "https://test222-production.up.railway.app"
-)
+# MINI APP URL
+WEBAPP_URL = "https://test222-production.up.railway.app"
 
-# ==========================================
+# =========================
 # GEMINI AI
-# ==========================================
+# =========================
 
 genai.configure(
     api_key=GEMINI_API_KEY
@@ -68,20 +66,21 @@ model = genai.GenerativeModel(
     "gemini-2.0-flash"
 )
 
-# ==========================================
+# =========================
 # DATABASE
-# ==========================================
+# =========================
 
 conn = sqlite3.connect(
     "shop.db",
-    check_same_thread=False
+    check_same_thread=False,
+    timeout=10
 )
 
 cursor = conn.cursor()
 
-# ==========================================
-# TABLES
-# ==========================================
+# =========================
+# ORDERS TABLE
+# =========================
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS orders (
@@ -91,6 +90,12 @@ CREATE TABLE IF NOT EXISTS orders (
     product TEXT
 )
 """)
+
+conn.commit()
+
+# =========================
+# PRODUCTS TABLE
+# =========================
 
 cursor.execute("""
 CREATE TABLE IF NOT EXISTS products (
@@ -103,19 +108,19 @@ CREATE TABLE IF NOT EXISTS products (
 
 conn.commit()
 
-# ==========================================
+# =========================
 # DEFAULT PRODUCTS
-# ==========================================
+# =========================
 
 cursor.execute(
     "SELECT * FROM products"
 )
 
-products_exist = cursor.fetchall()
+existing_products = cursor.fetchall()
 
-if not products_exist:
+if not existing_products:
 
-    default_products = [
+    products_data = [
 
         (
             "Beauty of Joseon Relief Sun",
@@ -149,33 +154,30 @@ if not products_exist:
         (name, category, price)
         VALUES (?, ?, ?)
         """,
-        default_products
+        products_data
     )
 
     conn.commit()
 
-# ==========================================
-# KEYBOARDS
-# ==========================================
+# =========================
+# MAIN MENU
+# =========================
 
 main_keyboard = ReplyKeyboardMarkup(
-
     [
         ["🛍 Каталог", "🤖 AI Консультант"],
-
-        ["📦 Мои заказы", "💬 Поддержка"],
-
-        ["📍 О нас", "🌐 Instagram"],
-
-        ["🛍 Mini App"]
+        ["🧴 Подбор ухода", "📦 Мои заказы"],
+        ["💬 Поддержка", "📍 О нас"],
+        ["🌐 Instagram", "🛍 Mini App"]
     ],
-
     resize_keyboard=True
-
 )
 
-catalog_keyboard = InlineKeyboardMarkup([
+# =========================
+# CATALOG MENU
+# =========================
 
+catalog_keyboard = InlineKeyboardMarkup([
     [
         InlineKeyboardButton(
             "✨ Уход за лицом",
@@ -194,12 +196,11 @@ catalog_keyboard = InlineKeyboardMarkup([
             callback_data="clean"
         )
     ]
-
 ])
 
-# ==========================================
+# =========================
 # START
-# ==========================================
+# =========================
 
 async def start(
     update: Update,
@@ -209,26 +210,23 @@ async def start(
     if update.effective_user.id == BLOCKED_USER_ID:
 
         await update.message.reply_text(
-            "🚧 Бот временно не работает"
+            "404 - Джалля именно сан ишлатомиса нахуй😂"
         )
 
         return
 
     await update.message.reply_text(
-
         (
             "✨ Добро пожаловать в GlowRush 🇰🇷\n\n"
             "Магазин корейской косметики\n"
             "Выберите раздел 👇"
         ),
-
         reply_markup=main_keyboard
-
     )
 
-# ==========================================
+# =========================
 # ADMIN PANEL
-# ==========================================
+# =========================
 
 async def admin(
     update: Update,
@@ -238,54 +236,168 @@ async def admin(
     if update.effective_user.id != ADMIN_ID:
 
         await update.message.reply_text(
-            "❌ Нет доступа"
+            "Нет доступа ❌"
         )
 
         return
 
-    keyboard = InlineKeyboardMarkup([
-
-        [
-            InlineKeyboardButton(
-                "➕ Добавить товар",
-                callback_data="admin_add"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
-                "✏️ Редактировать товар",
-                callback_data="admin_edit"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
-                "🗑 Удалить товар",
-                callback_data="admin_delete"
-            )
-        ],
-
-        [
-            InlineKeyboardButton(
-                "📦 Все заказы",
-                callback_data="admin_orders"
-            )
-        ]
-
-    ])
-
-    await update.message.reply_text(
-
-        "👨‍💼 Админ панель",
-
-        reply_markup=keyboard
-
+    cursor.execute(
+        "SELECT * FROM orders"
     )
 
-# ==========================================
+    orders = cursor.fetchall()
+
+    if not orders:
+
+        await update.message.reply_text(
+            "Заказов нет 📭"
+        )
+
+        return
+
+    text = "📦 Все заказы:\n\n"
+
+    for order in orders:
+
+        text += (
+            f"📦 Order: {order[0]}\n"
+            f"👤 "
+            f"<a href='tg://user?id={order[1]}'>"
+            f"{order[2]}"
+            f"</a>\n"
+            f"🛍 {order[3]}\n\n"
+        )
+
+    if len(text) > 4000:
+        text = text[:4000]
+
+    await update.message.reply_text(
+        text,
+        parse_mode="HTML",
+        disable_web_page_preview=True
+    )
+
+# =========================
+# ADD PRODUCT
+# =========================
+
+async def addproduct(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    try:
+
+        data = " ".join(context.args)
+
+        split_data = data.split("|")
+
+        name = split_data[0].strip()
+        category = split_data[1].strip()
+        price = split_data[2].strip()
+
+        cursor.execute(
+            """
+            INSERT INTO products
+            (name, category, price)
+            VALUES (?, ?, ?)
+            """,
+            (name, category, price)
+        )
+
+        conn.commit()
+
+        await update.message.reply_text(
+            "✅ Товар добавлен!"
+        )
+
+    except Exception as e:
+
+        await update.message.reply_text(
+            f"Ошибка: {e}"
+        )
+
+# =========================
+# PRODUCTS ADMIN
+# =========================
+
+async def products(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    cursor.execute(
+        "SELECT * FROM products"
+    )
+
+    products_data = cursor.fetchall()
+
+    if not products_data:
+
+        await update.message.reply_text(
+            "Товаров нет 📭"
+        )
+
+        return
+
+    text = "🛍 Товары:\n\n"
+
+    for product in products_data:
+
+        text += (
+            f"ID: {product[0]}\n"
+            f"📦 {product[1]}\n"
+            f"📂 {product[2]}\n"
+            f"💵 {product[3]}\n\n"
+        )
+
+    if len(text) > 4000:
+        text = text[:4000]
+
+    await update.message.reply_text(text)
+
+# =========================
+# DELETE PRODUCT
+# =========================
+
+async def deleteproduct(
+    update: Update,
+    context: ContextTypes.DEFAULT_TYPE
+):
+
+    if update.effective_user.id != ADMIN_ID:
+        return
+
+    try:
+
+        product_id = context.args[0]
+
+        cursor.execute(
+            "DELETE FROM products WHERE id=?",
+            (product_id,)
+        )
+
+        conn.commit()
+
+        await update.message.reply_text(
+            "🗑 Товар удалён!"
+        )
+
+    except Exception as e:
+
+        await update.message.reply_text(
+            f"Ошибка: {e}"
+        )
+
+# =========================
 # SHOW PRODUCTS
-# ==========================================
+# =========================
 
 async def show_products(
     query,
@@ -300,40 +412,50 @@ async def show_products(
         (category,)
     )
 
-    products = cursor.fetchall()
+    products_data = cursor.fetchall()
 
-    if not products:
+    if not products_data:
 
         await query.message.reply_text(
-            "📭 Товаров нет"
+            "Товаров нет 📭"
         )
 
         return
 
     keyboard = []
 
-    for product in products:
+    row = []
 
-        keyboard.append([
-            InlineKeyboardButton(
-                f"{product[1]} • {product[3]}",
-                callback_data=f"buy_{product[0]}"
-            )
-        ])
+    for product in products_data:
 
-    await query.message.reply_text(
-
-        "🛍 Выберите товар",
-
-        reply_markup=InlineKeyboardMarkup(
-            keyboard
+        button = InlineKeyboardButton(
+            text=f"{product[1]} • {product[3]}",
+            callback_data=f"buy_{product[0]}"
         )
 
+        row.append(button)
+
+        if len(row) == 2:
+
+            keyboard.append(row)
+
+            row = []
+
+    if row:
+        keyboard.append(row)
+
+    reply_markup = InlineKeyboardMarkup(
+        keyboard
     )
 
-# ==========================================
-# MESSAGES
-# ==========================================
+    await query.message.reply_text(
+        "🛍 Выберите товар",
+        reply_markup=reply_markup
+    )
+
+# =========================
+# TEXT MESSAGES
+# =========================
 
 async def messages(
     update: Update,
@@ -350,165 +472,60 @@ async def messages(
 
     text = update.message.text
 
-    # ======================================
-    # ADMIN ADD PRODUCT
-    # ======================================
-
-    if context.user_data.get(
-        "admin_add_mode"
-    ):
-
-        try:
-
-            split_data = text.split("|")
-
-            name = split_data[0].strip()
-            category = split_data[1].strip()
-            price = split_data[2].strip()
-
-            cursor.execute(
-                """
-                INSERT INTO products
-                (name, category, price)
-                VALUES (?, ?, ?)
-                """,
-                (
-                    name,
-                    category,
-                    price
-                )
-            )
-
-            conn.commit()
-
-            context.user_data[
-                "admin_add_mode"
-            ] = False
-
-            await update.message.reply_text(
-                "✅ Товар добавлен!"
-            )
-
-        except Exception as e:
-
-            await update.message.reply_text(
-                f"Ошибка: {e}"
-            )
-
-        return
-
-    # ======================================
-    # ADMIN EDIT PRODUCT
-    # ======================================
-
-    if context.user_data.get(
-        "edit_product_id"
-    ):
-
-        try:
-
-            product_id = context.user_data[
-                "edit_product_id"
-            ]
-
-            split_data = text.split("|")
-
-            name = split_data[0].strip()
-            category = split_data[1].strip()
-            price = split_data[2].strip()
-
-            cursor.execute(
-                """
-                UPDATE products
-                SET name=?,
-                    category=?,
-                    price=?
-                WHERE id=?
-                """,
-                (
-                    name,
-                    category,
-                    price,
-                    product_id
-                )
-            )
-
-            conn.commit()
-
-            context.user_data[
-                "edit_product_id"
-            ] = None
-
-            await update.message.reply_text(
-                "✅ Товар обновлён!"
-            )
-
-        except Exception as e:
-
-            await update.message.reply_text(
-                f"Ошибка: {e}"
-            )
-
-        return
-
-    # ======================================
     # CATALOG
-    # ======================================
 
     if text == "🛍 Каталог":
 
         await update.message.reply_text(
-
             "Выберите категорию 👇",
-
             reply_markup=catalog_keyboard
-
         )
 
-    # ======================================
     # MINI APP
-    # ======================================
 
     elif text == "🛍 Mini App":
 
         keyboard = InlineKeyboardMarkup([
-
             [
                 InlineKeyboardButton(
-                    "🚀 Открыть магазин",
+                    text="🚀 Открыть магазин",
                     web_app=WebAppInfo(
                         url=WEBAPP_URL
                     )
                 )
             ]
-
         ])
 
         await update.message.reply_text(
-
             "GlowRush Mini App 🇰🇷",
-
             reply_markup=keyboard
-
         )
 
-    # ======================================
     # AI
-    # ======================================
 
     elif text == "🤖 AI Консультант":
 
-        context.user_data[
-            "ai_mode"
-        ] = True
+        context.user_data["ai_mode"] = True
 
         await update.message.reply_text(
             "Напишите вопрос ✨"
         )
 
-    # ======================================
+    # SKINCARE
+
+    elif text == "🧴 Подбор ухода":
+
+        await update.message.reply_text(
+            (
+                "Напишите тип кожи:\n\n"
+                "• Сухая\n"
+                "• Жирная\n"
+                "• Комбинированная\n"
+                "• Чувствительная"
+            )
+        )
+
     # MY ORDERS
-    # ======================================
 
     elif text == "📦 Мои заказы":
 
@@ -530,54 +547,46 @@ async def messages(
         if not orders:
 
             await update.message.reply_text(
-                "📭 У вас нет заказов"
+                "У вас нет заказов 📭"
             )
 
         else:
 
-            result = (
+            orders_text = (
                 "📦 Ваши заказы:\n\n"
             )
 
             for order in orders:
 
-                result += (
+                orders_text += (
                     f"• {order[0]}\n"
                 )
 
             await update.message.reply_text(
-                result
+                orders_text
             )
 
-    # ======================================
     # SUPPORT
-    # ======================================
 
     elif text == "💬 Поддержка":
 
         await update.message.reply_text(
-            "@glowrush_support"
+            "Менеджер:\n@glowrush_support"
         )
 
-    # ======================================
     # ABOUT
-    # ======================================
 
     elif text == "📍 О нас":
 
         await update.message.reply_text(
-
             (
                 "GlowRush 🇰🇷\n\n"
                 "Оригинальная корейская косметика\n"
                 "Доставка по Узбекистану 🚚"
             )
-
         )
 
-    # ======================================
     # INSTAGRAM
-    # ======================================
 
     elif text == "🌐 Instagram":
 
@@ -585,9 +594,7 @@ async def messages(
             "https://instagram.com/glowrush.uz"
         )
 
-    # ======================================
     # ORDER
-    # ======================================
 
     elif context.user_data.get(
         "order_product"
@@ -635,9 +642,7 @@ async def messages(
             "✅ Заказ отправлен!"
         )
 
-    # ======================================
     # AI CHAT
-    # ======================================
 
     elif context.user_data.get(
         "ai_mode"
@@ -662,9 +667,7 @@ async def messages(
             if len(answer) > 4000:
                 answer = answer[:4000]
 
-            context.user_data[
-                "ai_mode"
-            ] = False
+            context.user_data["ai_mode"] = False
 
             await update.message.reply_text(
                 answer
@@ -676,9 +679,15 @@ async def messages(
                 f"Ошибка AI: {e}"
             )
 
-# ==========================================
+    else:
+
+        await update.message.reply_text(
+            "Выберите кнопку 👇"
+        )
+
+# =========================
 # CALLBACKS
-# ==========================================
+# =========================
 
 async def callbacks(
     update: Update,
@@ -692,14 +701,12 @@ async def callbacks(
     if query.from_user.id == BLOCKED_USER_ID:
 
         await query.message.reply_text(
-            "🚧 Бот временно не работает"
+            "404 - Джалля именно сан ишлатомиса нахуй😂"
         )
 
         return
 
-    # ======================================
     # FACE
-    # ======================================
 
     if query.data == "face":
 
@@ -708,9 +715,7 @@ async def callbacks(
             "face"
         )
 
-    # ======================================
     # SERUM
-    # ======================================
 
     elif query.data == "serum":
 
@@ -719,33 +724,27 @@ async def callbacks(
             "serum"
         )
 
-    # ======================================
     # CLEAN
-    # ======================================
 
     elif query.data == "clean":
 
         await query.message.reply_text(
-
             (
                 "🫧 Cleansing Foam\n"
                 "🫧 Cleansing Oil\n"
                 "🫧 Cleansing Balm"
             )
-
         )
 
-    # ======================================
     # BUY PRODUCT
-    # ======================================
 
-    elif query.data.startswith(
-        "buy_"
-    ):
+    elif query.data.startswith("buy_"):
 
-        product_id = query.data.replace(
-            "buy_",
-            ""
+        product_id = (
+            query.data.replace(
+                "buy_",
+                ""
+            )
         )
 
         cursor.execute(
@@ -761,19 +760,21 @@ async def callbacks(
         if not product:
 
             await query.message.reply_text(
-                "❌ Товар не найден"
+                "Товар не найден ❌"
             )
 
             return
 
+        product_name = product[1]
+
         context.user_data[
             "order_product"
-        ] = product[1]
+        ] = product_name
 
         await query.message.reply_text(
             f"""
 🛍 Вы выбрали:
-{product[1]}
+{product_name}
 
 Введите:
 • Имя
@@ -782,229 +783,46 @@ async def callbacks(
 """
         )
 
-    # ======================================
-    # ADMIN ORDERS
-    # ======================================
-
-    elif query.data == "admin_orders":
-
-        if query.from_user.id != ADMIN_ID:
-            return
-
-        cursor.execute(
-            "SELECT * FROM orders"
-        )
-
-        orders = cursor.fetchall()
-
-        if not orders:
-
-            await query.message.reply_text(
-                "📭 Заказов нет"
-            )
-
-            return
-
-        result = "📦 Все заказы:\n\n"
-
-        for order in orders:
-
-            result += (
-                f"📦 Order: {order[0]}\n"
-                f"👤 "
-                f"<a href='tg://user?id={order[1]}'>"
-                f"{order[2]}"
-                f"</a>\n"
-                f"🛍 {order[3]}\n\n"
-            )
-
-        await query.message.reply_text(
-            result,
-            parse_mode="HTML"
-        )
-
-    # ======================================
-    # ADMIN ADD
-    # ======================================
-
-    elif query.data == "admin_add":
-
-        if query.from_user.id != ADMIN_ID:
-            return
-
-        context.user_data[
-            "admin_add_mode"
-        ] = True
-
-        await query.message.reply_text(
-            """
-Введите товар:
-
-Название | Категория | Цена
-
-Пример:
-Anua Toner | face | 25$
-"""
-        )
-
-    # ======================================
-    # ADMIN EDIT
-    # ======================================
-
-    elif query.data == "admin_edit":
-
-        if query.from_user.id != ADMIN_ID:
-            return
-
-        cursor.execute(
-            "SELECT * FROM products"
-        )
-
-        products = cursor.fetchall()
-
-        keyboard = []
-
-        for product in products:
-
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"✏️ {product[1]}",
-                    callback_data=(
-                        f"edit_{product[0]}"
-                    )
-                )
-            ])
-
-        await query.message.reply_text(
-
-            "Выберите товар 👇",
-
-            reply_markup=InlineKeyboardMarkup(
-                keyboard
-            )
-
-        )
-
-    # ======================================
-    # EDIT PRODUCT
-    # ======================================
-
-    elif query.data.startswith(
-        "edit_"
-    ):
-
-        if query.from_user.id != ADMIN_ID:
-            return
-
-        product_id = query.data.replace(
-            "edit_",
-            ""
-        )
-
-        context.user_data[
-            "edit_product_id"
-        ] = product_id
-
-        await query.message.reply_text(
-            """
-Введите новые данные:
-
-Название | Категория | Цена
-
-Пример:
-Anua Toner | face | 25$
-"""
-        )
-
-    # ======================================
-    # ADMIN DELETE
-    # ======================================
-
-    elif query.data == "admin_delete":
-
-        if query.from_user.id != ADMIN_ID:
-            return
-
-        cursor.execute(
-            "SELECT * FROM products"
-        )
-
-        products = cursor.fetchall()
-
-        keyboard = []
-
-        for product in products:
-
-            keyboard.append([
-                InlineKeyboardButton(
-                    f"🗑 {product[1]}",
-                    callback_data=(
-                        f"delete_{product[0]}"
-                    )
-                )
-            ])
-
-        await query.message.reply_text(
-
-            "Удалить товар 👇",
-
-            reply_markup=InlineKeyboardMarkup(
-                keyboard
-            )
-
-        )
-
-    # ======================================
-    # DELETE PRODUCT
-    # ======================================
-
-    elif query.data.startswith(
-        "delete_"
-    ):
-
-        if query.from_user.id != ADMIN_ID:
-            return
-
-        product_id = query.data.replace(
-            "delete_",
-            ""
-        )
-
-        cursor.execute(
-            """
-            DELETE FROM products
-            WHERE id=?
-            """,
-            (product_id,)
-        )
-
-        conn.commit()
-
-        await query.message.reply_text(
-            "🗑 Товар удалён!"
-        )
-
-# ==========================================
+# =========================
 # TELEGRAM BOT
-# ==========================================
+# =========================
 
 app = ApplicationBuilder().token(
     TOKEN
 ).build()
 
+# COMMANDS
+
+app.add_handler(
+    CommandHandler("start", start)
+)
+
+app.add_handler(
+    CommandHandler("admin", admin)
+)
+
 app.add_handler(
     CommandHandler(
-        "start",
-        start
+        "addproduct",
+        addproduct
     )
 )
 
 app.add_handler(
     CommandHandler(
-        "admin",
-        admin
+        "products",
+        products
     )
 )
+
+app.add_handler(
+    CommandHandler(
+        "deleteproduct",
+        deleteproduct
+    )
+)
+
+# TEXT
 
 app.add_handler(
     MessageHandler(
@@ -1013,24 +831,22 @@ app.add_handler(
     )
 )
 
-app.add_handler(
-    CallbackQueryHandler(
-        callbacks
-    )
-)
+# CALLBACKS
 
-# ==========================================
-# START
-# ==========================================
+app.add_handler(
+    CallbackQueryHandler(callbacks)
+)
 
 print(
-    "GlowRush Bot started 🚀"
+    "GlowRush AI business bot started 🚀"
 )
 
-Thread(
-    target=run_web
-).start()
+# START WEB SERVER
+
+Thread(target=run_web).start()
+
+# START BOT
 
 app.run_polling(
     close_loop=False
-)
+    )
