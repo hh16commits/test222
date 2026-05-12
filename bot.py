@@ -6,7 +6,8 @@ from telegram import (
     Update,
     ReplyKeyboardMarkup,
     InlineKeyboardButton,
-    InlineKeyboardMarkup
+    InlineKeyboardMarkup,
+    WebAppInfo
 )
 
 from telegram.ext import (
@@ -28,6 +29,9 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # ⚠️ ВСТАВЬ СВОЙ TELEGRAM ID
 ADMIN_ID = 6081767884
+
+# ⚠️ ВСТАВЬ URL MINI APP
+WEBAPP_URL = "https://your-app.up.railway.app"
 
 genai.configure(api_key=GEMINI_API_KEY)
 
@@ -66,7 +70,7 @@ main_keyboard = ReplyKeyboardMarkup(
         ["🛍 Каталог", "🤖 AI Консультант"],
         ["🧴 Подбор ухода", "📦 Мои заказы"],
         ["💬 Поддержка", "📍 О нас"],
-        ["🌐 Instagram"]
+        ["🌐 Instagram", "🛍 Mini App"]
     ],
     resize_keyboard=True
 )
@@ -214,6 +218,26 @@ async def messages(
         await update.message.reply_text(
             "Выберите категорию 👇",
             reply_markup=catalog_keyboard
+        )
+
+    # MINI APP
+
+    elif text == "🛍 Mini App":
+
+        keyboard = InlineKeyboardMarkup([
+            [
+                InlineKeyboardButton(
+                    text="🚀 Открыть магазин",
+                    web_app=WebAppInfo(
+                        url=WEBAPP_URL
+                    )
+                )
+            ]
+        ])
+
+        await update.message.reply_text(
+            "GlowRush Mini App 🇰🇷",
+            reply_markup=keyboard
         )
 
     # AI CONSULTANT
