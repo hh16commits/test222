@@ -149,7 +149,6 @@ async def start(
         text,
         reply_markup=main_keyboard
     )
-
 # =========================
 # ADMIN PANEL
 # =========================
@@ -185,22 +184,21 @@ async def admin(
 
     for order in orders:
 
-     text += (
-    f"📦 Order: {order[0]}\n"
-    f"👤 <a href='tg://user?id={order[1]}'>"
-    f"{order[2]}</a>\n"
-    f"🛍 {order[3]}\n\n"
-)
+        text += (
+            f"📦 Order: {order[0]}\n"
+            f"👤 <a href='tg://user?id={order[1]}'>"
+            f"{order[2]}</a>\n"
+            f"🛍 {order[3]}\n\n"
+        )
 
     if len(text) > 4000:
         text = text[:4000]
 
-await update.message.reply_text(
-    text,
-    parse_mode="HTML",
-    disable_web_page_preview=True
-)
-
+    await update.message.reply_text(
+        text,
+        parse_mode="HTML",
+        disable_web_page_preview=True
+    )
 # =========================
 # TEXT MESSAGES
 # =========================
