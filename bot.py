@@ -1,5 +1,6 @@
 import os
-from openai import OpenAI
+import google.generativeai as genai
+
 from telegram import Update
 from telegram.ext import (
     ApplicationBuilder,
@@ -8,44 +9,32 @@ from telegram.ext import (
     filters
 )
 
-TELEGRAM_TOKEN = os.getenv("TOKEN")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+TOKEN = os.getenv("TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-client = OpenAI(api_key=OPENAI_API_KEY)
+genai.configure(api_key=GEMINI_API_KEY)
+
+model = genai.GenerativeModel("gemini-1.5-flash")
 
 
 async def chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
 
     try:
-        response = client.chat.completions.create(
-            model="gpt-4.1-mini",
-            messages=[
-                {
-                    "role": "system",
-                    "content": "Ты дружелюбный Telegram AI бот."
-                },
-                {
-                    "role": "user",
-                    "content": user_message
-                }
-            ]
-        )
+        response = model.generate_content(user_message)
 
-        answer = response.choices[0].message.content
-
-        await update.message.reply_text(answer)
+        await update.message.reply_text(response.text)
 
     except Exception as e:
         await update.message.reply_text(f"Ошибка: {e}")
 
 
-app = ApplicationBuilder().token(TELEGRAM_TOKEN).build()
+app = ApplicationBuilder().token(TOKEN).build()
 
 app.add_handler(
     MessageHandler(filters.TEXT & ~filters.COMMAND, chat)
 )
 
-print("AI bot started 🚀")
+print("Gemini bot started 🚀")
 
 app.run_polling(close_loop=False)
