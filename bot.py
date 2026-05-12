@@ -30,7 +30,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 ADMIN_ID = 6081767884
 
 # USER КОТОРОГО НУЖНО ЗАБЛОКИРОВАТЬ
-BLOCKED_USER_ID = 8271755471
+BLOCKED_USER_ID = 1145800624
 
 WEBAPP_URL = "https://your-app.up.railway.app"
 
@@ -185,7 +185,7 @@ async def start(
     if update.effective_user.id == BLOCKED_USER_ID:
 
         await update.message.reply_text(
-            "🚧 Бот временно не работает"
+            "404 - Джалля именно сан ишлатомиса нахуй😂 "
         )
 
         return
@@ -680,7 +680,7 @@ async def callbacks(
     if query.from_user.id == BLOCKED_USER_ID:
 
         await query.message.reply_text(
-            "🚧 Бот временно не работает"
+            "404 - Джалля именно сан ишлатомиса нахуй😂"
         )
 
         return
