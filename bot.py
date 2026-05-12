@@ -1,4 +1,7 @@
 import os
+import sqlite3
+import google.generativeai as genai
+
 from telegram import (
     Update,
     ReplyKeyboardMarkup,
@@ -15,20 +18,53 @@ from telegram.ext import (
     filters
 )
 
-TOKEN = os.getenv("TOKEN")
+# =========================
+# CONFIG
+# =========================
 
-# ===== Главное меню =====
+TOKEN = os.getenv("TOKEN")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+genai.configure(api_key=GEMINI_API_KEY)
+
+model = genai.GenerativeModel("gemini-flash-latest")
+
+# =========================
+# DATABASE
+# =========================
+
+conn = sqlite3.connect("shop.db", check_same_thread=False)
+
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT,
+    username TEXT,
+    product TEXT
+)
+""")
+
+conn.commit()
+
+# =========================
+# MAIN MENU
+# =========================
 
 main_keyboard = ReplyKeyboardMarkup(
     [
-        ["🛍 Каталог", "🧴 Подбор ухода"],
-        ["📦 Мои заказы", "💬 Поддержка"],
-        ["📍 О нас", "🌐 Instagram"]
+        ["🛍 Каталог", "🤖 AI Консультант"],
+        ["🧴 Подбор ухода", "📦 Мои заказы"],
+        ["💬 Поддержка", "📍 О нас"],
+        ["🌐 Instagram"]
     ],
     resize_keyboard=True
 )
 
-# ===== Каталог =====
+# =========================
+# CATALOG
+# =========================
 
 catalog_keyboard = InlineKeyboardMarkup([
     [
@@ -51,7 +87,43 @@ catalog_keyboard = InlineKeyboardMarkup([
     ]
 ])
 
-# ===== START =====
+# =========================
+# PRODUCTS
+# =========================
+
+face_products = InlineKeyboardMarkup([
+    [
+        InlineKeyboardButton(
+            "Beauty of Joseon Relief Sun",
+            callback_data="buy_sun"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            "Round Lab Toner",
+            callback_data="buy_toner"
+        )
+    ]
+])
+
+serum_products = InlineKeyboardMarkup([
+    [
+        InlineKeyboardButton(
+            "Axis-Y Dark Spot Serum",
+            callback_data="buy_axis"
+        )
+    ],
+    [
+        InlineKeyboardButton(
+            "Skin1004 Ampoule",
+            callback_data="buy_skin"
+        )
+    ]
+])
+
+# =========================
+# START
+# =========================
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -66,13 +138,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=main_keyboard
     )
 
-# ===== ОБРАБОТКА КНОПОК =====
+# =========================
+# TEXT MESSAGES
+# =========================
 
 async def messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = update.message.text
 
-    # КАТАЛОГ
+    # CATALOG
 
     if text == "🛍 Каталог":
 
@@ -81,43 +155,71 @@ async def messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=catalog_keyboard
         )
 
-    # ПОДБОР УХОДА
+    # AI CONSULTANT
+
+    elif text == "🤖 AI Консультант":
+
+        await update.message.reply_text(
+            "Напишите вопрос про уход за кожей ✨"
+        )
+
+        context.user_data["ai_mode"] = True
+
+    # SKIN CARE
 
     elif text == "🧴 Подбор ухода":
 
         await update.message.reply_text(
-            "Напишите ваш тип кожи:\n\n"
+            "Напишите тип кожи:\n\n"
             "• Сухая\n"
             "• Жирная\n"
             "• Комбинированная\n"
             "• Чувствительная"
         )
 
-    # ЗАКАЗЫ
+    # ORDERS
 
     elif text == "📦 Мои заказы":
 
-        await update.message.reply_text(
-            "У вас пока нет заказов 📭"
+        user_id = str(update.effective_user.id)
+
+        cursor.execute(
+            "SELECT product FROM orders WHERE user_id=?",
+            (user_id,)
         )
 
-    # ПОДДЕРЖКА
+        orders = cursor.fetchall()
+
+        if not orders:
+
+            await update.message.reply_text(
+                "У вас пока нет заказов 📭"
+            )
+
+        else:
+
+            text_orders = "📦 Ваши заказы:\n\n"
+
+            for order in orders:
+                text_orders += f"• {order[0]}\n"
+
+            await update.message.reply_text(text_orders)
+
+    # SUPPORT
 
     elif text == "💬 Поддержка":
 
         await update.message.reply_text(
-            "Связь с менеджером:\n"
-            "@glowrush_support"
+            "Менеджер:\n@glowrush_support"
         )
 
-    # О НАС
+    # ABOUT
 
     elif text == "📍 О нас":
 
         await update.message.reply_text(
-            "GlowRush ✨\n\n"
-            "Корейская косметика напрямую 🇰🇷\n"
-            "Оригинальная продукция\n"
+            "GlowRush 🇰🇷\n\n"
+            "Оригинальная корейская косметика\n"
             "Доставка по Узбекистану 🚚"
         )
 
@@ -126,17 +228,47 @@ async def messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "🌐 Instagram":
 
         await update.message.reply_text(
-            "Instagram:\n"
             "https://instagram.com/glowrush.uz"
         )
+
+    # AI CHAT
+
+    elif context.user_data.get("ai_mode"):
+
+        try:
+
+            response = model.generate_content(
+                f"""
+                Ты консультант магазина корейской косметики.
+                Отвечай кратко и полезно.
+
+                Вопрос:
+                {text}
+                """
+            )
+
+            answer = response.text
+
+            if len(answer) > 4000:
+                answer = answer[:4000]
+
+            await update.message.reply_text(answer)
+
+        except Exception as e:
+
+            await update.message.reply_text(
+                f"Ошибка AI: {e}"
+            )
 
     else:
 
         await update.message.reply_text(
-            "Выберите кнопку из меню 👇"
+            "Выберите кнопку 👇"
         )
 
-# ===== INLINE КНОПКИ =====
+# =========================
+# CALLBACKS
+# =========================
 
 async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
@@ -144,40 +276,104 @@ async def callbacks(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.answer()
 
-    # УХОД
+    user_id = str(query.from_user.id)
+
+    username = str(query.from_user.username)
+
+    # FACE
 
     if query.data == "face":
 
         await query.message.reply_text(
-            "✨ Уход за лицом\n\n"
-            "• Round Lab\n"
-            "• Anua\n"
-            "• Beauty of Joseon"
+            "✨ Уход за лицом",
+            reply_markup=face_products
         )
 
-    # СЫВОРОТКИ
+    # SERUM
 
     elif query.data == "serum":
 
         await query.message.reply_text(
-            "💧 Сыворотки\n\n"
-            "• Axis-Y\n"
-            "• Skin1004\n"
-            "• COSRX"
+            "💧 Сыворотки",
+            reply_markup=serum_products
         )
 
-    # ОЧИЩЕНИЕ
+    # CLEAN
 
     elif query.data == "clean":
 
         await query.message.reply_text(
             "🫧 Очищение\n\n"
-            "• Oil Cleanser\n"
-            "• Foam Cleanser\n"
+            "• Cleansing Foam\n"
+            "• Cleansing Oil\n"
             "• Cleansing Balm"
         )
 
-# ===== APP =====
+    # BUY PRODUCTS
+
+    elif query.data == "buy_sun":
+
+        product = "Beauty of Joseon Relief Sun"
+
+        cursor.execute(
+            "INSERT INTO orders (user_id, username, product) VALUES (?, ?, ?)",
+            (user_id, username, product)
+        )
+
+        conn.commit()
+
+        await query.message.reply_text(
+            f"✅ Заказ оформлен:\n{product}"
+        )
+
+    elif query.data == "buy_toner":
+
+        product = "Round Lab Toner"
+
+        cursor.execute(
+            "INSERT INTO orders (user_id, username, product) VALUES (?, ?, ?)",
+            (user_id, username, product)
+        )
+
+        conn.commit()
+
+        await query.message.reply_text(
+            f"✅ Заказ оформлен:\n{product}"
+        )
+
+    elif query.data == "buy_axis":
+
+        product = "Axis-Y Dark Spot Serum"
+
+        cursor.execute(
+            "INSERT INTO orders (user_id, username, product) VALUES (?, ?, ?)",
+            (user_id, username, product)
+        )
+
+        conn.commit()
+
+        await query.message.reply_text(
+            f"✅ Заказ оформлен:\n{product}"
+        )
+
+    elif query.data == "buy_skin":
+
+        product = "Skin1004 Ampoule"
+
+        cursor.execute(
+            "INSERT INTO orders (user_id, username, product) VALUES (?, ?, ?)",
+            (user_id, username, product)
+        )
+
+        conn.commit()
+
+        await query.message.reply_text(
+            f"✅ Заказ оформлен:\n{product}"
+        )
+
+# =========================
+# APP
+# =========================
 
 app = ApplicationBuilder().token(TOKEN).build()
 
@@ -196,6 +392,6 @@ app.add_handler(
     CallbackQueryHandler(callbacks)
 )
 
-print("GlowRush business bot started 🚀")
+print("GlowRush AI business bot started 🚀")
 
 app.run_polling(close_loop=False)
