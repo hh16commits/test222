@@ -185,11 +185,12 @@ async def admin(
 
     for order in orders:
 
-        text += (
-            f"ID: {order[0]}\n"
-            f"User: {order[2]}\n"
-            f"Product: {order[3]}\n\n"
-        )
+     text += (
+    f"📦 Order: {order[0]}\n"
+    f"👤 <a href='tg://user?id={order[1]}'>"
+    f"{order[2]}</a>\n"
+    f"🛍 {order[3]}\n\n"
+)
 
     if len(text) > 4000:
         text = text[:4000]
