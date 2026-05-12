@@ -27,7 +27,7 @@ TOKEN = os.getenv("TOKEN")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # ⚠️ ВСТАВЬ СВОЙ TELEGRAM ID
-ADMIN_ID = 123456789
+ADMIN_ID = 6081767884
 
 genai.configure(api_key=GEMINI_API_KEY)
 
