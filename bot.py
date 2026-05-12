@@ -180,7 +180,7 @@ async def start(
     context: ContextTypes.DEFAULT_TYPE
 ):
 
-    # BLOCKED USER
+    print(update.effective_user.id)
 
     if update.effective_user.id == BLOCKED_USER_ID:
 
